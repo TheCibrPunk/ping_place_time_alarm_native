@@ -49,4 +49,12 @@ class PingPlaceTimeAlarmNative {
 
   Future<String> clearAll() =>
       PingPlaceTimeAlarmNativePlatform.instance.clearAll();
+
+  Future<bool> canUseFullScreenIntent() =>
+      PingPlaceTimeAlarmNativePlatform.instance.canUseFullScreenIntent();
+
+  /// Opens Android's app-specific full-screen alarm access screen.
+  /// Must only be called from an explicit contextual user action.
+  Future<String> openFullScreenIntentSettings() =>
+      PingPlaceTimeAlarmNativePlatform.instance.openFullScreenIntentSettings();
 }

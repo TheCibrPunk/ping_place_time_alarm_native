@@ -42,4 +42,15 @@ class MethodChannelPingPlaceTimeAlarmNative
   @override
   Future<String> clearAll() async =>
       await methodChannel.invokeMethod<String>('clearAll') ?? 'error';
+
+  @override
+  Future<bool> canUseFullScreenIntent() async =>
+      await methodChannel.invokeMethod<bool>('canUseFullScreenIntent') ?? false;
+
+  @override
+  Future<String> openFullScreenIntentSettings() async =>
+      await methodChannel.invokeMethod<String>(
+        'openFullScreenIntentSettings',
+      ) ??
+      'error';
 }

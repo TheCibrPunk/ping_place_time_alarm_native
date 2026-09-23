@@ -159,6 +159,7 @@ internal object TimeAlarmSessionController {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(AlarmIntentFactory.openTask(context, identity))
+            .setFullScreenIntent(AlarmIntentFactory.ringFullScreen(context, identity), true)
             .setDeleteIntent(AlarmIntentFactory.stopSilently(context, identity))
             .addAction(0, "STOP", AlarmIntentFactory.stopAndOpen(context, identity))
             .build()

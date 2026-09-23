@@ -27,6 +27,10 @@ void main() {
               return 'owner-active';
             case 'clearAll':
               return 'cleared';
+            case 'canUseFullScreenIntent':
+              return true;
+            case 'openFullScreenIntentSettings':
+              return 'opened';
           }
           return null;
         });
@@ -60,6 +64,8 @@ void main() {
       );
       expect(await platform.activateOwner('owner-a'), 'owner-active');
       expect(await platform.clearAll(), 'cleared');
+      expect(await platform.canUseFullScreenIntent(), isTrue);
+      expect(await platform.openFullScreenIntentSettings(), 'opened');
     },
   );
 }

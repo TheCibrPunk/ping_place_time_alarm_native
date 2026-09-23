@@ -3,9 +3,13 @@ package com.pingplace.timealarm
 import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -29,6 +33,8 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
             METHOD_PENDING -> result.success(AlarmStore(applicationContext).scheduled().map { it.toMap() })
             METHOD_ACTIVATE_OWNER -> result.success(activateOwner(call.arguments as? String))
             METHOD_CLEAR_ALL -> result.success(clearAll())
+            METHOD_CAN_USE_FULL_SCREEN -> result.success(canUseFullScreenIntent())
+            METHOD_OPEN_FULL_SCREEN_SETTINGS -> result.success(openFullScreenIntentSettings())
             else -> result.notImplemented()
         }
     }
@@ -147,6 +153,24 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
         return "cleared"
     }
 
+    private fun canUseFullScreenIntent(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+            applicationContext.getSystemService(NotificationManager::class.java)
+                ?.canUseFullScreenIntent() == true
+
+    private fun openFullScreenIntentSettings(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return "not-required"
+        return runCatching {
+            applicationContext.startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                    Uri.parse("package:${applicationContext.packageName}"),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            "opened"
+        }.getOrElse { "error" }
+    }
+
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
     }
@@ -159,6 +183,8 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
         const val METHOD_PENDING = "pendingAlarms"
         const val METHOD_ACTIVATE_OWNER = "activateOwner"
         const val METHOD_CLEAR_ALL = "clearAll"
+        const val METHOD_CAN_USE_FULL_SCREEN = "canUseFullScreenIntent"
+        const val METHOD_OPEN_FULL_SCREEN_SETTINGS = "openFullScreenIntentSettings"
 
         fun notificationsAllowed(context: Context): Boolean =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

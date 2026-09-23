@@ -49,4 +49,16 @@ abstract class PingPlaceTimeAlarmNativePlatform extends PlatformInterface {
   Future<String> clearAll() {
     throw UnimplementedError('clearAll() has not been implemented.');
   }
+
+  Future<bool> canUseFullScreenIntent() {
+    throw UnimplementedError(
+      'canUseFullScreenIntent() has not been implemented.',
+    );
+  }
+
+  Future<String> openFullScreenIntentSettings() {
+    throw UnimplementedError(
+      'openFullScreenIntentSettings() has not been implemented.',
+    );
+  }
 }

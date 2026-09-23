@@ -38,6 +38,17 @@ internal object AlarmIntentFactory {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+    fun ringFullScreen(context: Context, identity: AlarmIdentity): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            identity.notificationId xor 0x40000000,
+            identity.putInto(Intent(context, TimeAlarmRingingActivity::class.java).apply {
+                action = TimeAlarmRingingActivity.ACTION_RING
+                data = identity.pendingIntentUri.buildUpon().appendPath("ringing").build()
+            }),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
     fun openTask(context: Context, identity: AlarmIdentity): PendingIntent =
         PendingIntent.getActivity(
             context,

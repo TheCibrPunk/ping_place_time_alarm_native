@@ -24,6 +24,12 @@ class MockPingPlaceTimeAlarmNativePlatform
 
   @override
   Future<String> clearAll() async => 'cleared';
+
+  @override
+  Future<bool> canUseFullScreenIntent() async => true;
+
+  @override
+  Future<String> openFullScreenIntentSettings() async => 'opened';
 }
 
 void main() {
@@ -67,5 +73,7 @@ void main() {
     expect(await plugin.cancel(request), 'cancelled');
     expect(await plugin.activateOwner('owner-a'), 'owner-active');
     expect(await plugin.clearAll(), 'cleared');
+    expect(await plugin.canUseFullScreenIntent(), isTrue);
+    expect(await plugin.openFullScreenIntentSettings(), 'opened');
   });
 }

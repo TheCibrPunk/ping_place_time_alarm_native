@@ -17,20 +17,23 @@ void main() {
       final activity = File(
         '${nativeRoot}TimeAlarmStopActivity.kt',
       ).readAsStringSync();
+      final coordinator = File(
+        '${nativeRoot}TimeAlarmStopCoordinator.kt',
+      ).readAsStringSync();
 
       expect(factory, contains('fun stopAndOpen'));
       expect(factory, contains('PendingIntent.getActivity'));
       expect(factory, contains('TimeAlarmStopActivity::class.java'));
       expect(receiver, isNot(contains('startActivity(')));
-      expect(activity, contains('stopIfMatching(this, identity)'));
+      expect(activity, contains('TimeAlarmStopCoordinator.stopAndOpen'));
       expect(
-        activity.indexOf('stopIfMatching(this, identity)'),
-        lessThan(activity.indexOf('openHostTask(identity)')),
+        coordinator.indexOf('stopIfMatching(activity, identity)'),
+        lessThan(coordinator.indexOf('openHostTask(activity, identity)')),
       );
-      expect(activity, contains('Intent.ACTION_VIEW'));
-      expect(activity, contains('identity.taskDeepLink'));
-      expect(activity, isNot(contains('completed')));
-      expect(activity, isNot(contains('Firebase')));
+      expect(coordinator, contains('Intent.ACTION_VIEW'));
+      expect(coordinator, contains('identity.taskDeepLink'));
+      expect(coordinator, isNot(contains('completed')));
+      expect(coordinator, isNot(contains('Firebase')));
     },
   );
 
@@ -52,14 +55,39 @@ void main() {
     );
   });
 
-  test('STOP activity is private, transient, and permission-free', () {
+  test('STOP and lock-screen alarm activities are private and transient', () {
     final manifest = File(
       'android/src/main/AndroidManifest.xml',
     ).readAsStringSync();
     expect(manifest, contains('TimeAlarmStopActivity'));
+    expect(manifest, contains('TimeAlarmRingingActivity'));
     expect(manifest, contains('android:exported="false"'));
     expect(manifest, contains('android:noHistory="true"'));
     expect(manifest, contains('android:excludeFromRecents="true"'));
-    expect(manifest, isNot(contains('USE_FULL_SCREEN_INTENT')));
+    expect(manifest, contains('USE_FULL_SCREEN_INTENT'));
   });
+
+  test(
+    'lock-screen surface is minimal and preserves silence-first authority',
+    () {
+      final ringing = File(
+        '${nativeRoot}TimeAlarmRingingActivity.kt',
+      ).readAsStringSync();
+      final controller = File(
+        '${nativeRoot}TimeAlarmSessionController.kt',
+      ).readAsStringSync();
+      final factory = File(
+        '${nativeRoot}AlarmIntentFactory.kt',
+      ).readAsStringSync();
+      expect(ringing, contains('setShowWhenLocked(true)'));
+      expect(ringing, contains('setTurnScreenOn(true)'));
+      expect(ringing, contains('text = "STOP"'));
+      expect(ringing, contains('TimeAlarmStopCoordinator.stopAndOpen'));
+      expect(ringing, isNot(contains('Done')));
+      expect(ringing, isNot(contains('completed')));
+      expect(controller, contains('.setFullScreenIntent('));
+      expect(factory, contains('fun ringFullScreen'));
+      expect(factory, contains('TimeAlarmRingingActivity::class.java'));
+    },
+  );
 }

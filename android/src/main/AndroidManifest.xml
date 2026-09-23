@@ -2,6 +2,7 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
   <application>
     <receiver
       android:name="com.pingplace.timealarm.TimeAlarmReceiver"
@@ -18,6 +19,13 @@
       android:excludeFromRecents="true"
       android:noHistory="true"
       android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    <activity
+      android:name="com.pingplace.timealarm.TimeAlarmRingingActivity"
+      android:enabled="true"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
     <service
       android:name="com.pingplace.timealarm.TimeAlarmService"
       android:enabled="true"
