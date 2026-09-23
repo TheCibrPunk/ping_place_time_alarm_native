@@ -11,6 +11,13 @@
       android:name="com.pingplace.timealarm.TimeAlarmActionReceiver"
       android:enabled="true"
       android:exported="false" />
+    <activity
+      android:name="com.pingplace.timealarm.TimeAlarmStopActivity"
+      android:enabled="true"
+      android:exported="false"
+      android:excludeFromRecents="true"
+      android:noHistory="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     <service
       android:name="com.pingplace.timealarm.TimeAlarmService"
       android:enabled="true"

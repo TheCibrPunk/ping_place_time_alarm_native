@@ -16,13 +16,24 @@ internal object AlarmIntentFactory {
             flags or PendingIntent.FLAG_IMMUTABLE,
         )
 
-    fun stop(context: Context, identity: AlarmIdentity): PendingIntent =
+    fun stopSilently(context: Context, identity: AlarmIdentity): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             identity.notificationId,
             identity.putInto(Intent(context, TimeAlarmActionReceiver::class.java).apply {
                 action = TimeAlarmActionReceiver.ACTION_STOP
                 data = identity.pendingIntentUri.buildUpon().appendPath("stop").build()
+            }),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    fun stopAndOpen(context: Context, identity: AlarmIdentity): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            identity.notificationId,
+            identity.putInto(Intent(context, TimeAlarmStopActivity::class.java).apply {
+                action = TimeAlarmActionReceiver.ACTION_STOP
+                data = identity.pendingIntentUri.buildUpon().appendPath("stop-and-open").build()
             }),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

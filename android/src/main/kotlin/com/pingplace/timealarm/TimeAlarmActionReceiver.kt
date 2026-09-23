@@ -11,11 +11,6 @@ class TimeAlarmActionReceiver : BroadcastReceiver() {
         if (!TimeAlarmSessionController.stopIfMatching(context, identity)) return
         context.stopService(Intent(context, TimeAlarmService::class.java))
         TimeAlarmSessionController.promoteNext(context)
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, identity.taskDeepLink).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            })
-        }
     }
 
     companion object {

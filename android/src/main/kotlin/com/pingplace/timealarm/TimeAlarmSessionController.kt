@@ -159,7 +159,7 @@ internal object TimeAlarmSessionController {
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(AlarmIntentFactory.openTask(context, identity))
-            .setDeleteIntent(AlarmIntentFactory.stop(context, identity))
-            .addAction(0, "STOP", AlarmIntentFactory.stop(context, identity))
+            .setDeleteIntent(AlarmIntentFactory.stopSilently(context, identity))
+            .addAction(0, "STOP", AlarmIntentFactory.stopAndOpen(context, identity))
             .build()
 }
