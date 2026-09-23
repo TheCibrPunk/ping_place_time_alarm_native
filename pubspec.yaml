@@ -1,6 +1,6 @@
 name: ping_place_time_alarm_native
-description: Inert project-owned native foundation for Ping Place Time Alarm delivery.
-version: 0.0.1
+description: Project-owned native Android Time Alarm delivery for Ping Place.
+version: 0.1.0
 homepage:
 
 environment:

@@ -8,7 +8,8 @@ abstract class PingPlaceTimeAlarmNativePlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static PingPlaceTimeAlarmNativePlatform _instance = MethodChannelPingPlaceTimeAlarmNative();
+  static PingPlaceTimeAlarmNativePlatform _instance =
+      MethodChannelPingPlaceTimeAlarmNative();
 
   /// The default instance of [PingPlaceTimeAlarmNativePlatform] to use.
   ///
@@ -27,5 +28,25 @@ abstract class PingPlaceTimeAlarmNativePlatform extends PlatformInterface {
     throw UnimplementedError(
       'isNativePluginAvailable() has not been implemented.',
     );
+  }
+
+  Future<String> schedule(Map<String, Object> request) {
+    throw UnimplementedError('schedule() has not been implemented.');
+  }
+
+  Future<String> cancel(Map<String, Object> request) {
+    throw UnimplementedError('cancel() has not been implemented.');
+  }
+
+  Future<List<Map<String, Object?>>> pendingAlarms() {
+    throw UnimplementedError('pendingAlarms() has not been implemented.');
+  }
+
+  Future<String> activateOwner(String ownerUid) {
+    throw UnimplementedError('activateOwner() has not been implemented.');
+  }
+
+  Future<String> clearAll() {
+    throw UnimplementedError('clearAll() has not been implemented.');
   }
 }
