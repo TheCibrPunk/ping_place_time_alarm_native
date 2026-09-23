@@ -90,4 +90,55 @@ void main() {
       expect(factory, contains('TimeAlarmRingingActivity::class.java'));
     },
   );
+
+  test(
+    'ringer mode owns audio and native vibration without channel output',
+    () {
+      final policy = File(
+        '${nativeRoot}AlarmOutputPolicy.kt',
+      ).readAsStringSync();
+      final controller = File(
+        '${nativeRoot}TimeAlarmSessionController.kt',
+      ).readAsStringSync();
+      final manifest = File(
+        'android/src/main/AndroidManifest.xml',
+      ).readAsStringSync();
+
+      expect(policy, contains('RINGER_MODE_NORMAL'));
+      expect(policy, contains('RINGER_MODE_VIBRATE'));
+      expect(policy, contains('playAudio = false, vibrate = false'));
+      expect(controller, contains('manager?.ringerMode'));
+      expect(controller, contains('VibrationEffect.createWaveform'));
+      expect(controller, contains('target.vibrate(effect)'));
+      expect(controller, contains('vibrator?.cancel()'));
+      expect(controller, contains('enableVibration(false)'));
+      expect(controller, contains('setSound(null, null)'));
+      expect(manifest, contains('android.permission.VIBRATE'));
+    },
+  );
+
+  test(
+    'all session exits share output cleanup before navigation or promotion',
+    () {
+      final controller = File(
+        '${nativeRoot}TimeAlarmSessionController.kt',
+      ).readAsStringSync();
+      final coordinator = File(
+        '${nativeRoot}TimeAlarmStopCoordinator.kt',
+      ).readAsStringSync();
+
+      expect(controller, contains('scheduleTimeout'));
+      expect(controller, contains('stopIfMatching(context, identity)'));
+      expect(controller, contains('serviceDestroyed'));
+      expect(controller, contains('stopLocked(targetService, it)'));
+      expect(
+        controller.indexOf('mediaPlayer?.stop()'),
+        lessThan(controller.indexOf('vibrator?.cancel()')),
+      );
+      expect(
+        coordinator.indexOf('stopIfMatching(activity, identity)'),
+        lessThan(coordinator.indexOf('openHostTask(activity, identity)')),
+      );
+    },
+  );
 }

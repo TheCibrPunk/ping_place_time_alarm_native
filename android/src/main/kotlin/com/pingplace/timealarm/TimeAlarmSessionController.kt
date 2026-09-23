@@ -12,14 +12,18 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Handler
 import android.os.Looper
+import android.os.Build
 import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
 internal enum class SessionStart { STARTED, DUPLICATE, QUEUED, FAILED }
 
 internal object TimeAlarmSessionController {
-    const val CHANNEL_ID = "ping_place_time_alarm_alerts"
+    const val CHANNEL_ID = "ping_place_time_alarm_alerts_v2"
     const val CHANNEL_NAME = "Ping Place Time Alarms"
     const val MAX_ALERT_DURATION_MILLIS = 10L * 60L * 1000L
 
@@ -28,6 +32,7 @@ internal object TimeAlarmSessionController {
     private var mediaPlayer: MediaPlayer? = null
     private var audioManager: AudioManager? = null
     private var focusRequest: AudioFocusRequest? = null
+    private var vibrator: Vibrator? = null
     private var active: AlarmIdentity? = null
     private var service: TimeAlarmService? = null
     private var timeout: Runnable? = null
@@ -48,7 +53,7 @@ internal object TimeAlarmSessionController {
         return try {
             createChannel(targetService)
             targetService.startForeground(identity.notificationId, notification(targetService, identity))
-            startAudio(targetService)
+            startOutputs(targetService)
             scheduleTimeout(targetService, identity)
             SessionStart.STARTED
         } catch (_: Throwable) {
@@ -77,11 +82,17 @@ internal object TimeAlarmSessionController {
         service = null
     }
 
-    private fun startAudio(context: Context) {
+    private fun startOutputs(context: Context) {
+        val manager = context.getSystemService(AudioManager::class.java)
+        val policy = AlarmOutputPolicy.forRingerMode(manager?.ringerMode)
+        if (policy.vibrate) startVibration(context)
+        if (policy.playAudio) startAudio(context, manager)
+    }
+
+    private fun startAudio(context: Context, manager: AudioManager?) {
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: throw IllegalStateException("No system alarm sound")
-        val manager = context.getSystemService(AudioManager::class.java)
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -109,6 +120,19 @@ internal object TimeAlarmSessionController {
         }
     }
 
+    private fun startVibration(context: Context) {
+        val target = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        } ?: return
+        if (!target.hasVibrator()) return
+        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 700L, 500L), 0)
+        target.vibrate(effect)
+        vibrator = target
+    }
+
     private fun scheduleTimeout(context: Context, identity: AlarmIdentity) {
         timeout?.let(handler::removeCallbacks)
         timeout = Runnable {
@@ -126,6 +150,8 @@ internal object TimeAlarmSessionController {
         runCatching { mediaPlayer?.reset() }
         runCatching { mediaPlayer?.release() }
         mediaPlayer = null
+        runCatching { vibrator?.cancel() }
+        vibrator = null
         focusRequest?.let { request -> runCatching { audioManager?.abandonAudioFocusRequest(request) } }
         focusRequest = null
         audioManager = null
@@ -141,7 +167,9 @@ internal object TimeAlarmSessionController {
             NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Active Ping Place Time Alarm controls"
                 setSound(null, null)
-                enableVibration(true)
+                // The serialized native session owns vibration so notification
+                // delivery cannot add a second, independently controlled output.
+                enableVibration(false)
                 setBypassDnd(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             },
