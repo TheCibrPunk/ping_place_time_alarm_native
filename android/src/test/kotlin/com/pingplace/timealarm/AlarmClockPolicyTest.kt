@@ -83,11 +83,19 @@ class AlarmClockPolicyTest {
     @Test
     fun armedSameBootTimerKeepsElapsedDeadlineAcrossWallAndTimezoneChanges() {
         val incoming = identity(AlarmClockBasis.TIMER_ELAPSED_REALTIME)
-        val armed = incoming.withElapsedDeadline(310_000L)
-        assertEquals(true, AlarmClockPolicy.canReuse(armed, incoming, 20_000L))
+        val armed = incoming.withElapsedSchedule(310_000L, 42)
+        assertEquals(true, AlarmClockPolicy.canReuse(armed, incoming, 20_000L, 42))
         // No wall-clock or timezone input participates once the elapsed
         // deadline is armed; only monotonic elapsed time can expire it.
-        assertEquals(true, AlarmClockPolicy.canReuse(armed, incoming, 250_000L))
-        assertEquals(false, AlarmClockPolicy.canReuse(armed, incoming, 310_000L))
+        assertEquals(true, AlarmClockPolicy.canReuse(armed, incoming, 250_000L, 42))
+        assertEquals(false, AlarmClockPolicy.canReuse(armed, incoming, 310_000L, 42))
+    }
+
+    @Test
+    fun rebootNeverReusesPriorElapsedDeadline() {
+        val incoming = identity(AlarmClockBasis.TIMER_ELAPSED_REALTIME)
+        val priorBoot = incoming.withElapsedSchedule(310_000L, 41)
+        assertEquals(false, AlarmClockPolicy.canReuse(priorBoot, incoming, 20_000L, 42))
+        assertEquals(false, AlarmClockPolicy.canReuse(priorBoot, incoming, 20_000L, null))
     }
 }

@@ -94,6 +94,9 @@ internal class AlarmStore(context: Context) {
                             "elapsedDeadlineMillis" to raw.takeIf {
                                 it.has("elapsedDeadlineMillis")
                             }?.optLong("elapsedDeadlineMillis"),
+                            "elapsedBootCount" to raw.takeIf {
+                                it.has("elapsedBootCount")
+                            }?.optInt("elapsedBootCount"),
                         ),
                     )?.let(::add)
                 }

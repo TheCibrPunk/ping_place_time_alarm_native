@@ -12,6 +12,7 @@ class AlarmIdentityTest {
         taskPath: String = "tasks/task-a",
         clockBasis: String = AlarmClockBasis.ABSOLUTE_RTC.wireValue,
         elapsedDeadlineMillis: Long? = null,
+        elapsedBootCount: Int? = null,
     ) =
         AlarmIdentity.fromMap(
             mapOf(
@@ -23,6 +24,7 @@ class AlarmIdentityTest {
                 "scheduledAtEpochMillis" to 2_000_000_000_000L,
                 "clockBasis" to clockBasis,
                 "elapsedDeadlineMillis" to elapsedDeadlineMillis,
+                "elapsedBootCount" to elapsedBootCount,
             ),
         )
 
@@ -54,11 +56,14 @@ class AlarmIdentityTest {
             valid(
                 clockBasis = AlarmClockBasis.TIMER_ELAPSED_REALTIME.wireValue,
                 elapsedDeadlineMillis = 456_000L,
+                elapsedBootCount = 42,
             ),
         )
         assertEquals(AlarmClockBasis.TIMER_ELAPSED_REALTIME, identity.clockBasis)
         assertEquals(456_000L, identity.elapsedDeadlineMillis)
+        assertEquals(42, identity.elapsedBootCount)
         assertEquals("timer_elapsed_realtime", identity.toMap()["clockBasis"])
+        assertEquals(42, identity.toMap()["elapsedBootCount"])
     }
 
     @Test

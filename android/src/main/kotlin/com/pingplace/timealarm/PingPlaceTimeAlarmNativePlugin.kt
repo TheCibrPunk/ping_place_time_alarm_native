@@ -51,6 +51,7 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
                 existing,
                 identity,
                 SystemClock.elapsedRealtime(),
+                currentBootCount(),
             )
         ) {
             return "scheduled"
@@ -93,8 +94,9 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
                         TimeAlarmSessionController.promoteNext(applicationContext)
                     }
                 }
-            val scheduledIdentity = identity.withElapsedDeadline(
+            val scheduledIdentity = identity.withElapsedSchedule(
                 plan.persistedElapsedDeadlineMillis,
+                if (plan.persistedElapsedDeadlineMillis == null) null else currentBootCount(),
             )
             val intent = AlarmIntentFactory.delivery(
                 applicationContext,
@@ -137,6 +139,10 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
             "cancelled"
         }.getOrElse { "error" }
     }
+
+    private fun currentBootCount(): Int? = runCatching {
+        Settings.Global.getInt(applicationContext.contentResolver, Settings.Global.BOOT_COUNT)
+    }.getOrNull()?.takeIf { it >= 0 }
 
     private fun activateOwner(rawOwnerUid: String?): String {
         val ownerUid = rawOwnerUid?.trim().orEmpty()

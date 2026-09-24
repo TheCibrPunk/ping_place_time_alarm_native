@@ -23,11 +23,14 @@ internal object AlarmClockPolicy {
         existing: AlarmIdentity,
         incoming: AlarmIdentity,
         elapsedNowMillis: Long,
+        currentBootCount: Int?,
     ): Boolean =
         existing.token == incoming.token &&
             existing.clockBasis == incoming.clockBasis &&
             (existing.clockBasis == AlarmClockBasis.ABSOLUTE_RTC ||
-                existing.elapsedDeadlineMillis?.let { it > elapsedNowMillis } == true)
+                (currentBootCount != null &&
+                    existing.elapsedBootCount == currentBootCount &&
+                    existing.elapsedDeadlineMillis?.let { it > elapsedNowMillis } == true))
 
     fun plan(
         identity: AlarmIdentity,

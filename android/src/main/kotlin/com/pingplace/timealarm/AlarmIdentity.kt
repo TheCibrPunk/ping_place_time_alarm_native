@@ -15,6 +15,7 @@ internal data class AlarmIdentity(
     val scheduledAtEpochMillis: Long,
     val clockBasis: AlarmClockBasis,
     val elapsedDeadlineMillis: Long? = null,
+    val elapsedBootCount: Int? = null,
 ) {
     val token: String
         get() = "$ownerUid|$taskPath|$scheduleGeneration|$notificationId"
@@ -48,6 +49,7 @@ internal data class AlarmIdentity(
         .putExtra(EXTRA_CLOCK_BASIS, clockBasis.wireValue)
         .also { intent ->
             elapsedDeadlineMillis?.let { intent.putExtra(EXTRA_ELAPSED_DEADLINE, it) }
+            elapsedBootCount?.let { intent.putExtra(EXTRA_ELAPSED_BOOT_COUNT, it) }
         }
 
     fun toMap(): Map<String, Any> = mapOf(
@@ -58,10 +60,11 @@ internal data class AlarmIdentity(
         "title" to title,
         "scheduledAtEpochMillis" to scheduledAtEpochMillis,
         "clockBasis" to clockBasis.wireValue,
-    ) + (elapsedDeadlineMillis?.let { mapOf("elapsedDeadlineMillis" to it) } ?: emptyMap())
+    ) + (elapsedDeadlineMillis?.let { mapOf("elapsedDeadlineMillis" to it) } ?: emptyMap()) +
+        (elapsedBootCount?.let { mapOf("elapsedBootCount" to it) } ?: emptyMap())
 
-    fun withElapsedDeadline(value: Long?): AlarmIdentity =
-        copy(elapsedDeadlineMillis = value)
+    fun withElapsedSchedule(deadlineMillis: Long?, bootCount: Int?): AlarmIdentity =
+        copy(elapsedDeadlineMillis = deadlineMillis, elapsedBootCount = bootCount)
 
     companion object {
         const val EXTRA_OWNER_UID = "com.pingplace.timealarm.ownerUid"
@@ -72,6 +75,7 @@ internal data class AlarmIdentity(
         const val EXTRA_SCHEDULED_AT = "com.pingplace.timealarm.scheduledAtEpochMillis"
         const val EXTRA_CLOCK_BASIS = "com.pingplace.timealarm.clockBasis"
         const val EXTRA_ELAPSED_DEADLINE = "com.pingplace.timealarm.elapsedDeadlineMillis"
+        const val EXTRA_ELAPSED_BOOT_COUNT = "com.pingplace.timealarm.elapsedBootCount"
 
         private val taskPathPattern = Regex("^tasks/[^/]+$")
 
@@ -85,6 +89,7 @@ internal data class AlarmIdentity(
                 (raw["scheduledAtEpochMillis"] as? Number)?.toLong(),
             clockBasis = (raw["clockBasis"] as? String) ?: AlarmClockBasis.ABSOLUTE_RTC.wireValue,
             elapsedDeadlineMillis = (raw["elapsedDeadlineMillis"] as? Number)?.toLong(),
+            elapsedBootCount = (raw["elapsedBootCount"] as? Number)?.toInt(),
         )
 
         fun fromIntent(intent: Intent): AlarmIdentity? = create(
@@ -98,6 +103,8 @@ internal data class AlarmIdentity(
                 ?: AlarmClockBasis.ABSOLUTE_RTC.wireValue,
             elapsedDeadlineMillis = intent.takeIf { it.hasExtra(EXTRA_ELAPSED_DEADLINE) }
                 ?.getLongExtra(EXTRA_ELAPSED_DEADLINE, 0L),
+            elapsedBootCount = intent.takeIf { it.hasExtra(EXTRA_ELAPSED_BOOT_COUNT) }
+                ?.getIntExtra(EXTRA_ELAPSED_BOOT_COUNT, -1),
         )
 
         private fun create(
@@ -109,6 +116,7 @@ internal data class AlarmIdentity(
             scheduledAtEpochMillis: Long?,
             clockBasis: String?,
             elapsedDeadlineMillis: Long?,
+            elapsedBootCount: Int?,
         ): AlarmIdentity? {
             val cleanOwner = ownerUid?.trim().orEmpty()
             val cleanPath = taskPath?.trim().orEmpty()
@@ -121,7 +129,8 @@ internal data class AlarmIdentity(
                 notificationId == null || notificationId <= 0 ||
                 scheduledAtEpochMillis == null || scheduledAtEpochMillis <= 0L ||
                 parsedClockBasis == null ||
-                (elapsedDeadlineMillis != null && elapsedDeadlineMillis <= 0L)
+                (elapsedDeadlineMillis != null && elapsedDeadlineMillis <= 0L) ||
+                (elapsedBootCount != null && elapsedBootCount < 0)
             ) {
                 return null
             }
@@ -134,6 +143,7 @@ internal data class AlarmIdentity(
                 scheduledAtEpochMillis,
                 parsedClockBasis,
                 elapsedDeadlineMillis,
+                elapsedBootCount,
             )
         }
 
