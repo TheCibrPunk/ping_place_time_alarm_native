@@ -19,7 +19,7 @@ internal object TimeAlarmStopCoordinator {
         runCatching {
             activity.startActivity(launchIntent.apply {
                 action = Intent.ACTION_VIEW
-                data = identity.taskDeepLink
+                data = identity.stopDeepLink
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP

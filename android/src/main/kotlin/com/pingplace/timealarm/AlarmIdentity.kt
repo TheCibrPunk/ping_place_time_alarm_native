@@ -39,6 +39,14 @@ internal data class AlarmIdentity(
     val taskDeepLink: Uri
         get() = Uri.parse(taskDeepLinkString)
 
+    val stopDeepLinkString: String
+        get() = taskDeepLinkString + if (
+            clockBasis == AlarmClockBasis.TIMER_ELAPSED_REALTIME
+        ) "&timerStop=true" else ""
+
+    val stopDeepLink: Uri
+        get() = Uri.parse(stopDeepLinkString)
+
     fun putInto(intent: Intent): Intent = intent
         .putExtra(EXTRA_OWNER_UID, ownerUid)
         .putExtra(EXTRA_TASK_PATH, taskPath)

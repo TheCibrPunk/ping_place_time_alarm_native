@@ -31,7 +31,7 @@ void main() {
         lessThan(coordinator.indexOf('openHostTask(activity, identity)')),
       );
       expect(coordinator, contains('Intent.ACTION_VIEW'));
-      expect(coordinator, contains('identity.taskDeepLink'));
+      expect(coordinator, contains('identity.stopDeepLink'));
       expect(coordinator, isNot(contains('completed')));
       expect(coordinator, isNot(contains('Firebase')));
     },
@@ -54,6 +54,19 @@ void main() {
       ),
     );
   });
+
+  test(
+    'Timer STOP carries an explicit subtype while absolute Time does not',
+    () {
+      final identity = File('${nativeRoot}AlarmIdentity.kt').readAsStringSync();
+      expect(
+        identity,
+        contains('clockBasis == AlarmClockBasis.TIMER_ELAPSED_REALTIME'),
+      );
+      expect(identity, contains('&timerStop=true'));
+      expect(identity, isNot(contains("title == \"Timer\"")));
+    },
+  );
 
   test('STOP and lock-screen alarm activities are private and transient', () {
     final manifest = File(

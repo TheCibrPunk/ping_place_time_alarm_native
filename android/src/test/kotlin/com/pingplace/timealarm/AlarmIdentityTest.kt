@@ -70,4 +70,16 @@ class AlarmIdentityTest {
     fun unknownClockBasisFailsClosed() {
         assertNull(valid(clockBasis = "unknown"))
     }
+
+    @Test
+    fun timerStopDeepLinkIsExplicitWhileAbsoluteTimeRemainsUnchanged() {
+        val absolute = assertNotNull(valid())
+        val timer = assertNotNull(
+            valid(clockBasis = AlarmClockBasis.TIMER_ELAPSED_REALTIME.wireValue),
+        )
+        assertEquals(false, absolute.taskDeepLinkString.contains("timerStop"))
+        assertEquals(false, timer.taskDeepLinkString.contains("timerStop"))
+        assertEquals(false, absolute.stopDeepLinkString.contains("timerStop"))
+        assertEquals(true, timer.stopDeepLinkString.endsWith("&timerStop=true"))
+    }
 }
