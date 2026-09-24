@@ -68,7 +68,9 @@ void main() {
       notificationId: 123,
       title: 'Call Mom',
       scheduledAt: DateTime.utc(2030, 1, 1, 12),
+      clockBasis: PingPlaceTimeAlarmClockBasis.timerElapsedRealtime,
     );
+    expect(request.toMap()['clockBasis'], 'timer_elapsed_realtime');
     expect(await plugin.schedule(request), 'scheduled');
     expect(await plugin.cancel(request), 'cancelled');
     expect(await plugin.activateOwner('owner-a'), 'owner-active');

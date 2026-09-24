@@ -7,7 +7,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class AlarmIdentityTest {
-    private fun valid(generation: Int = 1, taskPath: String = "tasks/task-a") =
+    private fun valid(
+        generation: Int = 1,
+        taskPath: String = "tasks/task-a",
+        clockBasis: String = AlarmClockBasis.ABSOLUTE_RTC.wireValue,
+        elapsedDeadlineMillis: Long? = null,
+    ) =
         AlarmIdentity.fromMap(
             mapOf(
                 "ownerUid" to "owner-a",
@@ -16,6 +21,8 @@ class AlarmIdentityTest {
                 "notificationId" to 12345,
                 "title" to "Call Mom",
                 "scheduledAtEpochMillis" to 2_000_000_000_000L,
+                "clockBasis" to clockBasis,
+                "elapsedDeadlineMillis" to elapsedDeadlineMillis,
             ),
         )
 
@@ -39,5 +46,23 @@ class AlarmIdentityTest {
     @Test
     fun generationChangesIdentity() {
         assertNotEquals(assertNotNull(valid(1)).token, assertNotNull(valid(2)).token)
+    }
+
+    @Test
+    fun timerIdentityPersistsClockBasisAndElapsedDeadline() {
+        val identity = assertNotNull(
+            valid(
+                clockBasis = AlarmClockBasis.TIMER_ELAPSED_REALTIME.wireValue,
+                elapsedDeadlineMillis = 456_000L,
+            ),
+        )
+        assertEquals(AlarmClockBasis.TIMER_ELAPSED_REALTIME, identity.clockBasis)
+        assertEquals(456_000L, identity.elapsedDeadlineMillis)
+        assertEquals("timer_elapsed_realtime", identity.toMap()["clockBasis"])
+    }
+
+    @Test
+    fun unknownClockBasisFailsClosed() {
+        assertNull(valid(clockBasis = "unknown"))
     }
 }

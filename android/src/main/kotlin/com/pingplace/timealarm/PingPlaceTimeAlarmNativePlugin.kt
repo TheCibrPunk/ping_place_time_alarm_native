@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -44,7 +45,21 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
         if (AlarmStore(applicationContext).activeOwner() != identity.ownerUid) {
             return "rejected:owner-session"
         }
-        if (identity.scheduledAtEpochMillis <= System.currentTimeMillis()) return "rejected:past"
+        val store = AlarmStore(applicationContext)
+        val existing = store.scheduled().firstOrNull { it.token == identity.token }
+        if (existing != null && AlarmClockPolicy.canReuse(
+                existing,
+                identity,
+                SystemClock.elapsedRealtime(),
+            )
+        ) {
+            return "scheduled"
+        }
+        val plan = AlarmClockPolicy.plan(
+            identity,
+            System.currentTimeMillis(),
+            SystemClock.elapsedRealtime(),
+        ) ?: return "rejected:past"
         if (!notificationsAllowed(applicationContext)) return "notification-permission-required"
         val manager = applicationContext.getSystemService(AlarmManager::class.java)
             ?: return "error"
@@ -52,7 +67,6 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
             return "exact-alarm-permission-required"
         }
         return runCatching {
-            val store = AlarmStore(applicationContext)
             store.scheduled()
                 .filter { it.taskPath == identity.taskPath && it.token != identity.token }
                 .forEach { stale ->
@@ -79,17 +93,20 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
                         TimeAlarmSessionController.promoteNext(applicationContext)
                     }
                 }
+            val scheduledIdentity = identity.withElapsedDeadline(
+                plan.persistedElapsedDeadlineMillis,
+            )
             val intent = AlarmIntentFactory.delivery(
                 applicationContext,
-                identity,
+                scheduledIdentity,
                 PendingIntent.FLAG_UPDATE_CURRENT,
             ) ?: return "error"
             manager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                identity.scheduledAtEpochMillis,
+                plan.alarmType,
+                plan.triggerAtMillis,
                 intent,
             )
-            store.putScheduled(identity)
+            store.putScheduled(scheduledIdentity)
             "scheduled"
         }.getOrElse { "error" }
     }

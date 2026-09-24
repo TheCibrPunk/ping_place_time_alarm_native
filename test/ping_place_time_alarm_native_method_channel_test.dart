@@ -55,6 +55,7 @@ void main() {
         'notificationId': 123,
         'title': 'Call Mom',
         'scheduledAtEpochMillis': 2000000000000,
+        'clockBasis': 'timer_elapsed_realtime',
       };
       expect(await platform.schedule(request), 'scheduled');
       expect(await platform.cancel(request), 'cancelled');

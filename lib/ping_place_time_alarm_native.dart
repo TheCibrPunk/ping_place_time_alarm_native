@@ -1,5 +1,13 @@
 import 'ping_place_time_alarm_native_platform_interface.dart';
 
+enum PingPlaceTimeAlarmClockBasis {
+  absoluteRtc('absolute_rtc'),
+  timerElapsedRealtime('timer_elapsed_realtime');
+
+  const PingPlaceTimeAlarmClockBasis(this.wireValue);
+  final String wireValue;
+}
+
 final class PingPlaceTimeAlarmRequest {
   const PingPlaceTimeAlarmRequest({
     required this.ownerUid,
@@ -8,6 +16,7 @@ final class PingPlaceTimeAlarmRequest {
     required this.notificationId,
     required this.title,
     required this.scheduledAt,
+    this.clockBasis = PingPlaceTimeAlarmClockBasis.absoluteRtc,
   });
 
   final String ownerUid;
@@ -16,6 +25,7 @@ final class PingPlaceTimeAlarmRequest {
   final int notificationId;
   final String title;
   final DateTime scheduledAt;
+  final PingPlaceTimeAlarmClockBasis clockBasis;
 
   Map<String, Object> toMap() => <String, Object>{
     'ownerUid': ownerUid,
@@ -24,6 +34,7 @@ final class PingPlaceTimeAlarmRequest {
     'notificationId': notificationId,
     'title': title,
     'scheduledAtEpochMillis': scheduledAt.toUtc().millisecondsSinceEpoch,
+    'clockBasis': clockBasis.wireValue,
   };
 }
 

@@ -87,6 +87,13 @@ internal class AlarmStore(context: Context) {
                             "notificationId" to raw.optInt("notificationId"),
                             "title" to raw.optString("title"),
                             "scheduledAtEpochMillis" to raw.optLong("scheduledAtEpochMillis"),
+                            "clockBasis" to raw.optString(
+                                "clockBasis",
+                                AlarmClockBasis.ABSOLUTE_RTC.wireValue,
+                            ),
+                            "elapsedDeadlineMillis" to raw.takeIf {
+                                it.has("elapsedDeadlineMillis")
+                            }?.optLong("elapsedDeadlineMillis"),
                         ),
                     )?.let(::add)
                 }

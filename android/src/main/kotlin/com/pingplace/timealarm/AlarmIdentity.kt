@@ -13,6 +13,8 @@ internal data class AlarmIdentity(
     val notificationId: Int,
     val title: String,
     val scheduledAtEpochMillis: Long,
+    val clockBasis: AlarmClockBasis,
+    val elapsedDeadlineMillis: Long? = null,
 ) {
     val token: String
         get() = "$ownerUid|$taskPath|$scheduleGeneration|$notificationId"
@@ -43,6 +45,10 @@ internal data class AlarmIdentity(
         .putExtra(EXTRA_NOTIFICATION_ID, notificationId)
         .putExtra(EXTRA_TITLE, title)
         .putExtra(EXTRA_SCHEDULED_AT, scheduledAtEpochMillis)
+        .putExtra(EXTRA_CLOCK_BASIS, clockBasis.wireValue)
+        .also { intent ->
+            elapsedDeadlineMillis?.let { intent.putExtra(EXTRA_ELAPSED_DEADLINE, it) }
+        }
 
     fun toMap(): Map<String, Any> = mapOf(
         "ownerUid" to ownerUid,
@@ -51,7 +57,11 @@ internal data class AlarmIdentity(
         "notificationId" to notificationId,
         "title" to title,
         "scheduledAtEpochMillis" to scheduledAtEpochMillis,
-    )
+        "clockBasis" to clockBasis.wireValue,
+    ) + (elapsedDeadlineMillis?.let { mapOf("elapsedDeadlineMillis" to it) } ?: emptyMap())
+
+    fun withElapsedDeadline(value: Long?): AlarmIdentity =
+        copy(elapsedDeadlineMillis = value)
 
     companion object {
         const val EXTRA_OWNER_UID = "com.pingplace.timealarm.ownerUid"
@@ -60,6 +70,8 @@ internal data class AlarmIdentity(
         const val EXTRA_NOTIFICATION_ID = "com.pingplace.timealarm.notificationId"
         const val EXTRA_TITLE = "com.pingplace.timealarm.title"
         const val EXTRA_SCHEDULED_AT = "com.pingplace.timealarm.scheduledAtEpochMillis"
+        const val EXTRA_CLOCK_BASIS = "com.pingplace.timealarm.clockBasis"
+        const val EXTRA_ELAPSED_DEADLINE = "com.pingplace.timealarm.elapsedDeadlineMillis"
 
         private val taskPathPattern = Regex("^tasks/[^/]+$")
 
@@ -71,6 +83,8 @@ internal data class AlarmIdentity(
             title = raw["title"] as? String,
             scheduledAtEpochMillis =
                 (raw["scheduledAtEpochMillis"] as? Number)?.toLong(),
+            clockBasis = (raw["clockBasis"] as? String) ?: AlarmClockBasis.ABSOLUTE_RTC.wireValue,
+            elapsedDeadlineMillis = (raw["elapsedDeadlineMillis"] as? Number)?.toLong(),
         )
 
         fun fromIntent(intent: Intent): AlarmIdentity? = create(
@@ -80,6 +94,10 @@ internal data class AlarmIdentity(
             notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0),
             title = intent.getStringExtra(EXTRA_TITLE),
             scheduledAtEpochMillis = intent.getLongExtra(EXTRA_SCHEDULED_AT, 0L),
+            clockBasis = intent.getStringExtra(EXTRA_CLOCK_BASIS)
+                ?: AlarmClockBasis.ABSOLUTE_RTC.wireValue,
+            elapsedDeadlineMillis = intent.takeIf { it.hasExtra(EXTRA_ELAPSED_DEADLINE) }
+                ?.getLongExtra(EXTRA_ELAPSED_DEADLINE, 0L),
         )
 
         private fun create(
@@ -89,16 +107,21 @@ internal data class AlarmIdentity(
             notificationId: Int?,
             title: String?,
             scheduledAtEpochMillis: Long?,
+            clockBasis: String?,
+            elapsedDeadlineMillis: Long?,
         ): AlarmIdentity? {
             val cleanOwner = ownerUid?.trim().orEmpty()
             val cleanPath = taskPath?.trim().orEmpty()
             val cleanTitle = title?.trim().orEmpty()
+            val parsedClockBasis = AlarmClockBasis.fromWire(clockBasis)
             if (cleanOwner.isEmpty() ||
                 !taskPathPattern.matches(cleanPath) ||
                 cleanTitle.isEmpty() ||
                 scheduleGeneration == null || scheduleGeneration <= 0 ||
                 notificationId == null || notificationId <= 0 ||
-                scheduledAtEpochMillis == null || scheduledAtEpochMillis <= 0L
+                scheduledAtEpochMillis == null || scheduledAtEpochMillis <= 0L ||
+                parsedClockBasis == null ||
+                (elapsedDeadlineMillis != null && elapsedDeadlineMillis <= 0L)
             ) {
                 return null
             }
@@ -109,6 +132,8 @@ internal data class AlarmIdentity(
                 notificationId,
                 cleanTitle,
                 scheduledAtEpochMillis,
+                parsedClockBasis,
+                elapsedDeadlineMillis,
             )
         }
 
