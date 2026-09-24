@@ -176,8 +176,8 @@ internal object TimeAlarmSessionController {
         )
     }
 
-    private fun notification(context: Context, identity: AlarmIdentity): Notification =
-        NotificationCompat.Builder(context, CHANNEL_ID)
+    private fun notification(context: Context, identity: AlarmIdentity): Notification {
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Ping Place Time Alarm")
             .setContentText(identity.title)
@@ -190,5 +190,9 @@ internal object TimeAlarmSessionController {
             .setFullScreenIntent(AlarmIntentFactory.ringFullScreen(context, identity), true)
             .setDeleteIntent(AlarmIntentFactory.stopSilently(context, identity))
             .addAction(0, "STOP", AlarmIntentFactory.stopAndOpen(context, identity))
-            .build()
+        AlarmIntentFactory.restartAndOpen(context, identity)?.let { restart ->
+            builder.addAction(0, "RESTART", restart)
+        }
+        return builder.build()
+    }
 }

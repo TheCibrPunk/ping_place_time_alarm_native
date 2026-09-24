@@ -47,6 +47,16 @@ internal data class AlarmIdentity(
     val stopDeepLink: Uri
         get() = Uri.parse(stopDeepLinkString)
 
+    val restartDeepLinkString: String?
+        get() = if (clockBasis == AlarmClockBasis.TIMER_ELAPSED_REALTIME) {
+            "$taskDeepLinkString&timerRestart=true"
+        } else {
+            null
+        }
+
+    val restartDeepLink: Uri?
+        get() = restartDeepLinkString?.let(Uri::parse)
+
     fun putInto(intent: Intent): Intent = intent
         .putExtra(EXTRA_OWNER_UID, ownerUid)
         .putExtra(EXTRA_TASK_PATH, taskPath)

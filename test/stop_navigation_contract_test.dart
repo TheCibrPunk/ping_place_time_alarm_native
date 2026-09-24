@@ -28,12 +28,82 @@ void main() {
       expect(activity, contains('TimeAlarmStopCoordinator.stopAndOpen'));
       expect(
         coordinator.indexOf('stopIfMatching(activity, identity)'),
-        lessThan(coordinator.indexOf('openHostTask(activity, identity)')),
+        lessThan(coordinator.indexOf('openHostTask(activity, deepLink)')),
       );
       expect(coordinator, contains('Intent.ACTION_VIEW'));
-      expect(coordinator, contains('identity.stopDeepLink'));
+      expect(coordinator, contains('silenceAndOpen'));
       expect(coordinator, isNot(contains('completed')));
       expect(coordinator, isNot(contains('Firebase')));
+    },
+  );
+
+  test('Timer ringing surfaces expose generation-bound RESTART only', () {
+    final identity = File('${nativeRoot}AlarmIdentity.kt').readAsStringSync();
+    final factory = File(
+      '${nativeRoot}AlarmIntentFactory.kt',
+    ).readAsStringSync();
+    final activity = File(
+      '${nativeRoot}TimeAlarmRingingActivity.kt',
+    ).readAsStringSync();
+    final controller = File(
+      '${nativeRoot}TimeAlarmSessionController.kt',
+    ).readAsStringSync();
+
+    expect(identity, contains('&timerRestart=true'));
+    expect(identity, contains('scheduleGeneration'));
+    expect(identity, contains('notificationId'));
+    expect(factory, contains('fun restartAndOpen'));
+    expect(factory, contains('ACTION_RESTART'));
+    expect(activity, contains('text = "RESTART"'));
+    expect(
+      activity,
+      contains('alarm.clockBasis == AlarmClockBasis.TIMER_ELAPSED_REALTIME'),
+    );
+    expect(controller, contains('.addAction(0, "RESTART", restart)'));
+    expect(
+      controller,
+      contains('.setContentIntent(AlarmIntentFactory.openTask'),
+    );
+    expect(
+      factory,
+      contains('Intent(Intent.ACTION_VIEW, identity.taskDeepLink)'),
+    );
+    expect(
+      factory,
+      isNot(contains('Intent(Intent.ACTION_VIEW, identity.restartDeepLink')),
+    );
+    expect(identity, isNot(contains('title == "Timer"')));
+  });
+
+  test(
+    'RESTART shares silence-first teardown and stale actions fail closed',
+    () {
+      final coordinator = File(
+        '${nativeRoot}TimeAlarmStopCoordinator.kt',
+      ).readAsStringSync();
+      final activity = File(
+        '${nativeRoot}TimeAlarmStopActivity.kt',
+      ).readAsStringSync();
+
+      expect(
+        coordinator,
+        contains(
+          'val restartDeepLink = identity.restartDeepLink ?: return false',
+        ),
+      );
+      expect(
+        coordinator,
+        contains('return silenceAndOpen(activity, identity, restartDeepLink)'),
+      );
+      expect(
+        coordinator.indexOf('stopIfMatching(activity, identity)'),
+        lessThan(coordinator.indexOf('activity.stopService')),
+      );
+      expect(
+        coordinator.indexOf('activity.stopService'),
+        lessThan(coordinator.indexOf('openHostTask(activity, deepLink)')),
+      );
+      expect(activity, contains('ACTION_RESTART'));
     },
   );
 
@@ -150,7 +220,7 @@ void main() {
       );
       expect(
         coordinator.indexOf('stopIfMatching(activity, identity)'),
-        lessThan(coordinator.indexOf('openHostTask(activity, identity)')),
+        lessThan(coordinator.indexOf('openHostTask(activity, deepLink)')),
       );
     },
   );

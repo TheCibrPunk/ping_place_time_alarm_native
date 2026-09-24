@@ -84,6 +84,22 @@ class TimeAlarmRingingActivity : Activity() {
                 finish()
             }
         }, matchWidth())
+        if (alarm.clockBasis == AlarmClockBasis.TIMER_ELAPSED_REALTIME) {
+            addView(Button(context).apply {
+                text = "RESTART"
+                textSize = 24f
+                minHeight = 128
+                setOnClickListener {
+                    identity?.let { active ->
+                        TimeAlarmStopCoordinator.restartAndOpen(
+                            this@TimeAlarmRingingActivity,
+                            active,
+                        )
+                    }
+                    finish()
+                }
+            }, matchWidth())
+        }
     }
 
     private fun matchWidth() = LinearLayout.LayoutParams(

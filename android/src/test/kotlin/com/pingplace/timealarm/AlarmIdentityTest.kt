@@ -82,4 +82,21 @@ class AlarmIdentityTest {
         assertEquals(false, absolute.stopDeepLinkString.contains("timerStop"))
         assertEquals(true, timer.stopDeepLinkString.endsWith("&timerStop=true"))
     }
+
+    @Test
+    fun timerRestartDeepLinkIsExplicitAndGenerationBound() {
+        val absolute = assertNotNull(valid())
+        val timer = assertNotNull(
+            valid(
+                generation = 7,
+                clockBasis = AlarmClockBasis.TIMER_ELAPSED_REALTIME.wireValue,
+            ),
+        )
+        assertNull(absolute.restartDeepLinkString)
+        assertEquals(
+            "pingplace://pingplace.com/time-task?taskPath=tasks%2Ftask-a" +
+                "&scheduleGeneration=7&notificationId=12345&timerRestart=true",
+            timer.restartDeepLinkString,
+        )
+    }
 }

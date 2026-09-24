@@ -38,6 +38,19 @@ internal object AlarmIntentFactory {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+    fun restartAndOpen(context: Context, identity: AlarmIdentity): PendingIntent? {
+        if (identity.restartDeepLink == null) return null
+        return PendingIntent.getActivity(
+            context,
+            identity.notificationId xor 0x20000000,
+            identity.putInto(Intent(context, TimeAlarmStopActivity::class.java).apply {
+                action = TimeAlarmStopActivity.ACTION_RESTART
+                data = identity.pendingIntentUri.buildUpon().appendPath("restart-and-open").build()
+            }),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
     fun ringFullScreen(context: Context, identity: AlarmIdentity): PendingIntent =
         PendingIntent.getActivity(
             context,
