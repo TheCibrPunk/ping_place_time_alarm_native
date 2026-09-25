@@ -192,7 +192,11 @@ void main() {
       expect(policy, contains('playAudio = false, vibrate = false'));
       expect(controller, contains('manager?.ringerMode'));
       expect(controller, contains('VibrationEffect.createWaveform'));
-      expect(controller, contains('target.vibrate(effect)'));
+      expect(
+        controller,
+        contains('target.vibrate(VibrationEffect.createWaveform'),
+      );
+      expect(controller, contains('target.vibrate(longArrayOf'));
       expect(controller, contains('vibrator?.cancel()'));
       expect(controller, contains('enableVibration(false)'));
       expect(controller, contains('setSound(null, null)'));

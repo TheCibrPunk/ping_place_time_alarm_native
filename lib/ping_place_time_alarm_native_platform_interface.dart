@@ -42,6 +42,16 @@ abstract class PingPlaceTimeAlarmNativePlatform extends PlatformInterface {
     throw UnimplementedError('pendingAlarms() has not been implemented.');
   }
 
+  Future<Map<String, Object?>?> activeAlarmSession() {
+    throw UnimplementedError('activeAlarmSession() has not been implemented.');
+  }
+
+  Stream<Map<String, Object?>?> activeAlarmSessionEvents() {
+    throw UnimplementedError(
+      'activeAlarmSessionEvents() has not been implemented.',
+    );
+  }
+
   Future<String> activateOwner(String ownerUid) {
     throw UnimplementedError('activateOwner() has not been implemented.');
   }

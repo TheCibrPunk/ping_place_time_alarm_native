@@ -10,6 +10,11 @@ class MethodChannelPingPlaceTimeAlarmNative
   @visibleForTesting
   final methodChannel = const MethodChannel('ping_place_time_alarm_native');
 
+  @visibleForTesting
+  final sessionEventChannel = const EventChannel(
+    'ping_place_time_alarm_native/session_events',
+  );
+
   @override
   Future<bool> isNativePluginAvailable() async =>
       await methodChannel.invokeMethod<bool>('isNativePluginAvailable') ??
@@ -33,6 +38,24 @@ class MethodChannelPingPlaceTimeAlarmNative
         )
         .toList(growable: false);
   }
+
+  @override
+  Future<Map<String, Object?>?> activeAlarmSession() async {
+    final raw = await methodChannel.invokeMapMethod<dynamic, dynamic>(
+      'activeAlarmSession',
+    );
+    return raw?.map((key, value) => MapEntry(key.toString(), value));
+  }
+
+  @override
+  Stream<Map<String, Object?>?> activeAlarmSessionEvents() =>
+      sessionEventChannel.receiveBroadcastStream().map((raw) {
+        if (raw == null) return null;
+        if (raw is! Map) return null;
+        return raw.map(
+          (key, value) => MapEntry(key.toString(), value as Object?),
+        );
+      });
 
   @override
   Future<String> activateOwner(String ownerUid) async =>

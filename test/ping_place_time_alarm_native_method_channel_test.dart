@@ -23,6 +23,15 @@ void main() {
               return <Map<String, Object?>>[
                 {'taskPath': 'tasks/task-a', 'scheduleGeneration': 1},
               ];
+            case 'activeAlarmSession':
+              return <String, Object?>{
+                'ownerUid': 'owner-a',
+                'taskPath': 'tasks/task-a',
+                'scheduleGeneration': 1,
+                'notificationId': 123,
+                'clockBasis': 'timer_elapsed_realtime',
+                'presentationMode': 'foreground-quiet',
+              };
             case 'activateOwner':
               return 'owner-active';
             case 'clearAll':
@@ -63,6 +72,11 @@ void main() {
         (await platform.pendingAlarms()).single['taskPath'],
         'tasks/task-a',
       );
+      final active = await platform.activeAlarmSession();
+      expect(active?['ownerUid'], 'owner-a');
+      expect(active?['scheduleGeneration'], 1);
+      expect(active?['notificationId'], 123);
+      expect(active?['presentationMode'], 'foreground-quiet');
       expect(await platform.activateOwner('owner-a'), 'owner-active');
       expect(await platform.clearAll(), 'cleared');
       expect(await platform.canUseFullScreenIntent(), isTrue);

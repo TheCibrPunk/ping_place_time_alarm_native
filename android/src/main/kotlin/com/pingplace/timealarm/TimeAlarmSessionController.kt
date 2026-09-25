@@ -25,6 +25,8 @@ internal enum class SessionStart { STARTED, DUPLICATE, QUEUED, FAILED }
 internal object TimeAlarmSessionController {
     const val CHANNEL_ID = "ping_place_time_alarm_alerts_v2"
     const val CHANNEL_NAME = "Ping Place Time Alarms"
+    const val QUIET_CHANNEL_ID = "ping_place_time_alarm_foreground_v1"
+    const val QUIET_CHANNEL_NAME = "Ping Place active alarm session"
     const val MAX_ALERT_DURATION_MILLIS = 10L * 60L * 1000L
 
     private val lock = Any()
@@ -32,8 +34,10 @@ internal object TimeAlarmSessionController {
     private var mediaPlayer: MediaPlayer? = null
     private var audioManager: AudioManager? = null
     private var focusRequest: AudioFocusRequest? = null
+    private var legacyFocusListener: AudioManager.OnAudioFocusChangeListener? = null
     private var vibrator: Vibrator? = null
     private var active: AlarmIdentity? = null
+    private var presentation: AlarmPresentation? = null
     private var service: TimeAlarmService? = null
     private var timeout: Runnable? = null
 
@@ -51,10 +55,18 @@ internal object TimeAlarmSessionController {
         active = identity
         AlarmStore(targetService).setActive(identity)
         return try {
-            createChannel(targetService)
-            targetService.startForeground(identity.notificationId, notification(targetService, identity))
+            presentation = AlarmPresentationPolicy.initial(
+                identity,
+                ForegroundVisibilityAuthority.isConfidentlyVisible(targetService),
+            )
+            createChannels(targetService)
+            targetService.startForeground(
+                identity.notificationId,
+                notification(targetService, identity, presentation!!),
+            )
             startOutputs(targetService)
             scheduleTimeout(targetService, identity)
+            publishActive()
             SessionStart.STARTED
         } catch (_: Throwable) {
             stopLocked(targetService, identity)
@@ -93,25 +105,30 @@ internal object TimeAlarmSessionController {
         val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: throw IllegalStateException("No system alarm sound")
-        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            .setOnAudioFocusChangeListener { }
+        val attributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ALARM)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        manager?.requestAudioFocus(request)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                .setAudioAttributes(attributes)
+                .setOnAudioFocusChangeListener { }
+                .build()
+            manager?.requestAudioFocus(request)
+            focusRequest = request
+        } else {
+            @Suppress("DEPRECATION")
+            legacyFocusListener = AudioManager.OnAudioFocusChangeListener { }.also { listener ->
+                manager?.requestAudioFocus(
+                    listener,
+                    AudioManager.STREAM_ALARM,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE,
+                )
+            }
+        }
         audioManager = manager
-        focusRequest = request
         mediaPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
+            setAudioAttributes(attributes)
             setDataSource(context, alarmUri)
             setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
             isLooping = true
@@ -128,8 +145,12 @@ internal object TimeAlarmSessionController {
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         } ?: return
         if (!target.hasVibrator()) return
-        val effect = VibrationEffect.createWaveform(longArrayOf(0L, 700L, 500L), 0)
-        target.vibrate(effect)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            target.vibrate(VibrationEffect.createWaveform(longArrayOf(0L, 700L, 500L), 0))
+        } else {
+            @Suppress("DEPRECATION")
+            target.vibrate(longArrayOf(0L, 700L, 500L), 0)
+        }
         vibrator = target
     }
 
@@ -152,16 +173,28 @@ internal object TimeAlarmSessionController {
         mediaPlayer = null
         runCatching { vibrator?.cancel() }
         vibrator = null
-        focusRequest?.let { request -> runCatching { audioManager?.abandonAudioFocusRequest(request) } }
+        focusRequest?.let { request ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                runCatching { audioManager?.abandonAudioFocusRequest(request) }
+            }
+        }
         focusRequest = null
+        legacyFocusListener?.let { listener ->
+            @Suppress("DEPRECATION")
+            runCatching { audioManager?.abandonAudioFocus(listener) }
+        }
+        legacyFocusListener = null
         audioManager = null
         context.getSystemService(NotificationManager::class.java)?.cancel(identity.notificationId)
         AlarmStore(context).setActive(null)
         active = null
+        presentation = null
         service = null
+        AlarmSessionEvents.publish(null)
     }
 
-    private fun createChannel(context: Context) {
+    private fun createChannels(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
@@ -174,25 +207,73 @@ internal object TimeAlarmSessionController {
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             },
         )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                QUIET_CHANNEL_ID,
+                QUIET_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Quiet controls while Ping Place is already visible"
+                setSound(null, null)
+                enableVibration(false)
+                setBypassDnd(false)
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+            },
+        )
     }
 
-    private fun notification(context: Context, identity: AlarmIdentity): Notification {
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+    private fun notification(
+        context: Context,
+        identity: AlarmIdentity,
+        mode: AlarmPresentation,
+    ): Notification {
+        val foregroundQuiet = mode == AlarmPresentation.FOREGROUND_QUIET
+        val builder = NotificationCompat.Builder(
+            context,
+            if (foregroundQuiet) QUIET_CHANNEL_ID else CHANNEL_ID,
+        )
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Ping Place Time Alarm")
             .setContentText(identity.title)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(if (foregroundQuiet) NotificationCompat.CATEGORY_SERVICE else NotificationCompat.CATEGORY_ALARM)
+            .setPriority(if (foregroundQuiet) NotificationCompat.PRIORITY_LOW else NotificationCompat.PRIORITY_MAX)
+            .setVisibility(if (foregroundQuiet) NotificationCompat.VISIBILITY_PRIVATE else NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(AlarmIntentFactory.openTask(context, identity))
-            .setFullScreenIntent(AlarmIntentFactory.ringFullScreen(context, identity), true)
             .setDeleteIntent(AlarmIntentFactory.stopSilently(context, identity))
             .addAction(0, "STOP", AlarmIntentFactory.stopAndOpen(context, identity))
+        if (!foregroundQuiet) {
+            builder.setFullScreenIntent(AlarmIntentFactory.ringFullScreen(context, identity), true)
+        }
         AlarmIntentFactory.restartAndOpen(context, identity)?.let { restart ->
             builder.addAction(0, "RESTART", restart)
         }
         return builder.build()
+    }
+
+    private fun publishActive() {
+        AlarmSessionEvents.publish(activeSnapshot())
+    }
+
+    fun activeSnapshot(): Map<String, Any>? = synchronized(lock) {
+        val identity = active ?: return null
+        val mode = presentation ?: AlarmPresentation.NATIVE_ALARM
+        identity.toMap() + mapOf("presentationMode" to mode.wireValue)
+    }
+
+    fun visibilityChanged(context: Context, confidentlyVisible: Boolean) = synchronized(lock) {
+        val identity = active ?: return
+        val current = presentation ?: AlarmPresentation.NATIVE_ALARM
+        val next = AlarmPresentationPolicy.afterVisibilityChange(current, confidentlyVisible)
+        if (next == current) return
+        val targetService = service ?: return
+        presentation = next
+        createChannels(context)
+        targetService.startForeground(
+            identity.notificationId,
+            notification(context, identity, next),
+        )
+        publishActive()
     }
 }

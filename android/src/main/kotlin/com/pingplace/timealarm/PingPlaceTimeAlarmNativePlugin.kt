@@ -4,26 +4,40 @@ import android.Manifest
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.NotificationManager
+import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
+    ActivityAware, Application.ActivityLifecycleCallbacks, EventChannel.StreamHandler {
     private lateinit var channel: MethodChannel
+    private lateinit var events: EventChannel
     private lateinit var applicationContext: Context
+    private var application: Application? = null
+    private var activity: Activity? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         applicationContext = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
         channel.setMethodCallHandler(this)
+        events = EventChannel(binding.binaryMessenger, EVENT_CHANNEL_NAME)
+        events.setStreamHandler(this)
+        application = applicationContext as? Application
+        application?.registerActivityLifecycleCallbacks(this)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -32,6 +46,7 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
             METHOD_SCHEDULE -> result.success(schedule(call.arguments as? Map<*, *>))
             METHOD_CANCEL -> result.success(cancel(call.arguments as? Map<*, *>))
             METHOD_PENDING -> result.success(AlarmStore(applicationContext).scheduled().map { it.toMap() })
+            METHOD_ACTIVE -> result.success(TimeAlarmSessionController.activeSnapshot())
             METHOD_ACTIVATE_OWNER -> result.success(activateOwner(call.arguments as? String))
             METHOD_CLEAR_ALL -> result.success(clearAll())
             METHOD_CAN_USE_FULL_SCREEN -> result.success(canUseFullScreenIntent())
@@ -140,6 +155,62 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
         }.getOrElse { "error" }
     }
 
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        activity?.let(ForegroundVisibilityAuthority::detach)
+        activity = null
+        application?.unregisterActivityLifecycleCallbacks(this)
+        application = null
+        AlarmSessionEvents.attach(null)
+        events.setStreamHandler(null)
+        channel.setMethodCallHandler(null)
+    }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        ForegroundVisibilityAuthority.attach(applicationContext, binding.activity)
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        activity?.let(ForegroundVisibilityAuthority::detach)
+        activity = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) =
+        onAttachedToActivity(binding)
+
+    override fun onDetachedFromActivity() {
+        activity?.let(ForegroundVisibilityAuthority::detach)
+        activity = null
+    }
+
+    override fun onActivityResumed(target: Activity) {
+        ForegroundVisibilityAuthority.resumed(target)
+    }
+
+    override fun onActivityPaused(target: Activity) {
+        ForegroundVisibilityAuthority.paused(target)
+    }
+
+    override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+    override fun onActivityStarted(activity: Activity) = Unit
+    override fun onActivityStopped(activity: Activity) = Unit
+    override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit
+    override fun onActivityDestroyed(activity: Activity) {
+        if (this.activity === activity) {
+            ForegroundVisibilityAuthority.detach(activity)
+            this.activity = null
+        }
+    }
+
+    override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
+        AlarmSessionEvents.attach(sink)
+        sink?.success(TimeAlarmSessionController.activeSnapshot())
+    }
+
+    override fun onCancel(arguments: Any?) {
+        AlarmSessionEvents.attach(null)
+    }
+
     private fun currentBootCount(): Int? = runCatching {
         Settings.Global.getInt(applicationContext.contentResolver, Settings.Global.BOOT_COUNT)
     }.getOrNull()?.takeIf { it >= 0 }
@@ -194,20 +265,18 @@ class PingPlaceTimeAlarmNativePlugin : FlutterPlugin, MethodChannel.MethodCallHa
         }.getOrElse { "error" }
     }
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        channel.setMethodCallHandler(null)
-    }
-
     internal companion object {
         const val CHANNEL_NAME = "ping_place_time_alarm_native"
         const val METHOD_IS_AVAILABLE = "isNativePluginAvailable"
         const val METHOD_SCHEDULE = "schedule"
         const val METHOD_CANCEL = "cancel"
         const val METHOD_PENDING = "pendingAlarms"
+        const val METHOD_ACTIVE = "activeAlarmSession"
         const val METHOD_ACTIVATE_OWNER = "activateOwner"
         const val METHOD_CLEAR_ALL = "clearAll"
         const val METHOD_CAN_USE_FULL_SCREEN = "canUseFullScreenIntent"
         const val METHOD_OPEN_FULL_SCREEN_SETTINGS = "openFullScreenIntentSettings"
+        const val EVENT_CHANNEL_NAME = "ping_place_time_alarm_native/session_events"
 
         fun notificationsAllowed(context: Context): Boolean =
             Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

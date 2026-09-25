@@ -1,5 +1,8 @@
 ## 0.1.0
 
+* Add fail-closed native foreground visibility authority for Timer presentation.
+* Add quiet foreground Timer alarm presentation with one-way native promotion.
+* Add exact active ringing-session inspection and event streaming for Flutter.
 * Add generation-bound exact Android Time Alarm scheduling and cancellation.
 * Add one serialized looping system-alarm audio session with a ten-minute failsafe.
 * Add a dedicated ongoing Time Alarm notification and native idempotent STOP.

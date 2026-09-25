@@ -20,6 +20,13 @@ class MockPingPlaceTimeAlarmNativePlatform
   Future<List<Map<String, Object?>>> pendingAlarms() async => const [];
 
   @override
+  Future<Map<String, Object?>?> activeAlarmSession() async => null;
+
+  @override
+  Stream<Map<String, Object?>?> activeAlarmSessionEvents() =>
+      const Stream<Map<String, Object?>?>.empty();
+
+  @override
   Future<String> activateOwner(String ownerUid) async => 'owner-active';
 
   @override

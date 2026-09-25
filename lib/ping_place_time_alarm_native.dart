@@ -55,6 +55,14 @@ class PingPlaceTimeAlarmNative {
   Future<List<Map<String, Object?>>> pendingAlarms() =>
       PingPlaceTimeAlarmNativePlatform.instance.pendingAlarms();
 
+  /// Returns the exact native session that is currently producing alarm output.
+  Future<Map<String, Object?>?> activeAlarmSession() =>
+      PingPlaceTimeAlarmNativePlatform.instance.activeAlarmSession();
+
+  /// Emits exact active-session start, stop, and presentation-promotion state.
+  Stream<Map<String, Object?>?> activeAlarmSessionEvents() =>
+      PingPlaceTimeAlarmNativePlatform.instance.activeAlarmSessionEvents();
+
   Future<String> activateOwner(String ownerUid) =>
       PingPlaceTimeAlarmNativePlatform.instance.activateOwner(ownerUid);
 
